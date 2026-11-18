@@ -82,32 +82,38 @@ function Model({ look, pulse, onError }) {
   );
 }
 
-/* Drag to rotate (springs back), plus the turntable's dashed ring. */
+/* Drag to spin the model a full 360° (with a little inertia on release), plus the turntable's dashed ring. */
 function useTurntable(figure, body, ring) {
   useEffect(() => {
     const fig = figure.current, el = body.current, rg = ring.current;
-    let ry = 0, last = 0, dragging = false, startX = 0, startRy = 0, off = 0, raf;
+    let ry = 0, last = 0, spin = 0, dragging = false, lastX = 0, off = 0, raf;
     const down = (e) => {
       dragging = true;
-      startX = e.clientX;
-      startRy = ry;
+      lastX = e.clientX;
+      spin = 0;
       el.classList.add('drag');
       try { el.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
     };
     const move = (e) => {
-      if (dragging) ry = Math.max(-34, Math.min(34, startRy + (e.clientX - startX) * 0.22));
+      if (!dragging) return;
+      ry += (e.clientX - lastX) * 0.5;
+      lastX = e.clientX;
     };
     const up = () => { dragging = false; el.classList.remove('drag'); };
     const tick = () => {
-      if (!dragging && ry !== 0) {
-        ry *= 0.92;
-        if (Math.abs(ry) < 0.02) ry = 0;
+      if (dragging) spin = ry - last;
+      else if (spin !== 0) {
+        ry += spin;
+        spin *= 0.94;
+        if (Math.abs(spin) < 0.02) spin = 0;
       }
       const vel = ry - last;
       last = ry;
+      const rad = (ry * Math.PI) / 180;
       fig.style.setProperty('--ry', ry.toFixed(2) + 'deg');
-      fig.style.setProperty('--sx', (-ry * 0.35).toFixed(2) + 'px');
-      off -= 0.12 + vel * 2.2;
+      fig.style.setProperty('--sx', (-Math.sin(rad) * 10).toFixed(2) + 'px');
+      fig.style.setProperty('--sw', Math.max(0.4, Math.abs(Math.cos(rad))).toFixed(3));
+      off -= 0.12 + vel * 0.8;
       rg.style.strokeDashoffset = off.toFixed(2);
       raf = requestAnimationFrame(tick);
     };
